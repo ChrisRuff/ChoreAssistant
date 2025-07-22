@@ -1,0 +1,174 @@
+add_chore:
+  name: Add Chore
+  description: Add a new chore to track
+  fields:
+    name:
+      name: Chore Name
+      description: The name of the chore
+      required: true
+      example: "Clean Kitchen"
+      selector:
+        text:
+    due_date:
+      name: Due Date
+      description: When the chore is due (YYYY-MM-DD format)
+      required: true
+      example: "2024-12-25"
+      selector:
+        date:
+    frequency:
+      name: Frequency
+      description: How often this chore should be done (for fixed type)
+      required: false
+      example: "weekly"
+      default: "weekly"
+      selector:
+        select:
+          options:
+            - daily
+            - weekly
+            - biweekly
+            - monthly
+            - quarterly
+            - yearly
+    chore_type:
+      name: Chore Type
+      description: Type of chore scheduling
+      required: false
+      default: "fixed"
+      selector:
+        select:
+          options:
+            - fixed
+            - adaptive
+    max_days:
+      name: Maximum Days
+      description: Maximum days allowed to complete adaptive chore
+      required: false
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 30
+    adaptive_window:
+      name: Adaptive Window
+      description: Days until next due date when completed early (adaptive type)
+      required: false
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 30
+    description:
+      name: Description
+      description: Additional details about the chore
+      required: false
+      example: "Clean all kitchen surfaces and appliances"
+      selector:
+        text:
+        multiline: true
+    assigned_to:
+      name: Assigned To
+      description: Who is responsible for this chore
+      required: false
+      example: "John"
+      default: "household"
+      selector:
+        text:
+
+remove_chore:
+  name: Remove Chore
+  description: Remove a chore from tracking
+  fields:
+    name:
+      name: Chore Name
+      description: The name of the chore to remove
+      required: true
+      example: "Clean Kitchen"
+      selector:
+        text:
+
+update_chore:
+  name: Update Chore
+  description: Update an existing chore
+  fields:
+    name:
+      name: Chore Name
+      description: The name of the chore to update
+      required: true
+      example: "Clean Kitchen"
+      selector:
+        text:
+    due_date:
+      name: New Due Date
+      description: New due date for the chore (YYYY-MM-DD format)
+      required: false
+      example: "2024-12-30"
+      selector:
+        date:
+    frequency:
+      name: New Frequency
+      description: New frequency for the chore
+      required: false
+      example: "biweekly"
+      selector:
+        select:
+          options:
+            - daily
+            - weekly
+            - biweekly
+            - monthly
+            - quarterly
+            - yearly
+    chore_type:
+      name: Chore Type
+      description: Type of chore scheduling
+      required: false
+      selector:
+        select:
+          options:
+            - fixed
+            - adaptive
+    max_days:
+      name: Maximum Days
+      description: Maximum days allowed to complete adaptive chore
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 30
+    adaptive_window:
+      name: Adaptive Window
+      description: Days until next due date when completed early (adaptive type)
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 30
+    description:
+      name: New Description
+      description: New description for the chore
+      required: false
+      example: "Updated cleaning instructions"
+      selector:
+        text:
+        multiline: true
+    assigned_to:
+      name: New Assigned To
+      description: New person responsible for the chore
+      required: false
+      example: "Jane"
+      selector:
+        text:
+
+complete_chore:
+  name: Complete Chore
+  description: Mark a chore as completed and update its due date
+  fields:
+    name:
+      name: Chore Name
+      description: The name of the chore to complete
+      required: true
+      example: "Clean Kitchen"
+      selector:
+        text:

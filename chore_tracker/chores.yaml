@@ -1,0 +1,33 @@
+- name: "Clean Kitchen"
+  due_date: "2024-07-29"
+  frequency: "weekly"
+  chore_type: "fixed"
+  description: "Clean all kitchen surfaces, appliances, and floors"
+  assigned_to: "household"
+  last_completed: null
+
+- name: "Take Out Trash"
+  due_date: "2024-07-25"
+  frequency: "biweekly"
+  chore_type: "fixed"
+  description: "Empty all trash bins and take to curb"
+  assigned_to: "John"
+  last_completed: null
+
+- name: "Water Plants"
+  due_date: "2024-07-25"
+  chore_type: "adaptive"
+  max_days: 3
+  adaptive_window: 3
+  description: "Water all indoor plants"
+  assigned_to: "John"
+  last_completed: null
+
+- name: "Check Mail"
+  due_date: "2024-07-24"
+  chore_type: "adaptive"
+  max_days: 2
+  adaptive_window: 2
+  description: "Check and sort mail"
+  assigned_to: "household"
+  last_completed: "2024-07-22"
