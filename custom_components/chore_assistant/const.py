@@ -1,6 +1,6 @@
 """Constants for the Chore Tracker integration."""
 
-DOMAIN = "chore_tracker"
+DOMAIN = "chore_assistant"
 
 # Service names
 SERVICE_ADD_CHORE = "add_chore"
