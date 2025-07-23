@@ -85,24 +85,31 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Register services for managing chores."""
     
     def _extract_chore_name(entity_id: str) -> str:
-        """Extract chore name from entity ID."""
+        """Extract chore name from entity ID or return as-is."""
+        _LOGGER.debug("Extracting chore name from: %s", entity_id)
+        
         # Handle entity ID format: sensor.chore_clean_kitchen
         if entity_id.startswith("sensor.chore_"):
             name_part = entity_id.replace("sensor.chore_", "")
+            _LOGGER.debug("Extracted name_part: %s", name_part)
         elif "." in entity_id and "chore_" in entity_id:
             # Handle entity_id format: sensor.chore_clean_kitchen
             name_part = entity_id.split(".", 1)[1].replace("chore_", "")
+            _LOGGER.debug("Extracted name_part: %s", name_part)
         else:
-            # Handle direct chore name: "Clean Kitchen" or "clean_kitchen"
+            # Handle direct chore name
             name_part = entity_id
+            _LOGGER.debug("Using direct name_part: %s", name_part)
         
-        # If name_part still contains underscores, convert to title case
-        # Otherwise, assume it's already in the correct format
+        # Convert snake_case to Title Case if needed
         if "_" in name_part:
             name = name_part.replace("_", " ").title()
+            _LOGGER.debug("Converted to title case: %s", name)
         else:
             name = name_part
+            _LOGGER.debug("Using as-is: %s", name)
         
+        _LOGGER.debug("Final extracted name: %s", name)
         return name
     
     async def add_chore(call: ServiceCall) -> None:
@@ -117,9 +124,9 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
             max_days = call.data.get(CONF_MAX_DAYS, DEFAULT_MAX_DAYS)
             adaptive_window = call.data.get(CONF_ADAPTIVE_WINDOW, DEFAULT_ADAPTIVE_WINDOW)
             
-            # Validate chore doesn't already exist
-            existing_names = {chore["name"] for chore in hass.data[DOMAIN]["chores"]}
-            if name in existing_names:
+            # Validate chore doesn't already exist (case-insensitive comparison)
+            existing_names = {chore["name"].strip().lower() for chore in hass.data[DOMAIN]["chores"]}
+            if name.strip().lower() in existing_names:
                 _LOGGER.error("Chore '%s' already exists", name)
                 return
             
@@ -161,18 +168,24 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Remove an existing chore."""
         try:
             entity_id = call.data[CONF_CHORE_NAME]
+            _LOGGER.debug("Remove chore called with entity_id: %s", entity_id)
             name = _extract_chore_name(entity_id)
+            _LOGGER.debug("Extracted chore name: %s", name)
+            
+            # Log all available chores for debugging
+            available_chores = [chore["name"] for chore in hass.data[DOMAIN]["chores"]]
+            _LOGGER.debug("Available chores: %s", available_chores)
 
-            # Check if chore exists
-            chore_exists = any(chore["name"] == name for chore in hass.data[DOMAIN]["chores"])
+            # Check if chore exists (case-insensitive comparison)
+            chore_exists = any(chore["name"].strip().lower() == name.strip().lower() for chore in hass.data[DOMAIN]["chores"])
             if not chore_exists:
-                _LOGGER.warning("Chore '%s' not found for removal", name)
+                _LOGGER.warning("Chore '%s' not found for removal. Available chores: %s", name, available_chores)
                 return
 
-            # Remove from storage
+            # Remove from storage (case-insensitive removal)
             hass.data[DOMAIN]["chores"] = [
                 chore for chore in hass.data[DOMAIN]["chores"]
-                if chore["name"] != name
+                if chore["name"].strip().lower() != name.strip().lower()
             ]
             _save_chores(hass)
 
@@ -186,17 +199,24 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Update an existing chore."""
         try:
             entity_id = call.data[CONF_CHORE_NAME]
+            _LOGGER.debug("Update chore called with entity_id: %s", entity_id)
             name = _extract_chore_name(entity_id)
+            _LOGGER.debug("Extracted chore name: %s", name)
             
-            # Find chore
+            # Log all available chores for debugging
+            available_chores = [chore["name"] for chore in hass.data[DOMAIN]["chores"]]
+            _LOGGER.debug("Available chores: %s", available_chores)
+            
+            # Find chore (case-insensitive comparison)
             chore = None
             for c in hass.data[DOMAIN]["chores"]:
-                if c["name"] == name:
+                if c["name"].strip().lower() == name.strip().lower():
                     chore = c
+                    _LOGGER.debug("Found matching chore: %s", c)
                     break
             
             if not chore:
-                _LOGGER.error("Chore '%s' not found for update", name)
+                _LOGGER.error("Chore '%s' not found for update. Available chores: %s", name, available_chores)
                 return
             
             # Update fields
@@ -230,17 +250,24 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Mark a chore as completed and update due date."""
         try:
             entity_id = call.data[CONF_CHORE_NAME]
+            _LOGGER.debug("Complete chore called with entity_id: %s", entity_id)
             name = _extract_chore_name(entity_id)
+            _LOGGER.debug("Extracted chore name: %s", name)
             
-            # Find chore
+            # Log all available chores for debugging
+            available_chores = [chore["name"] for chore in hass.data[DOMAIN]["chores"]]
+            _LOGGER.debug("Available chores: %s", available_chores)
+            
+            # Find chore (case-insensitive comparison)
             chore = None
             for c in hass.data[DOMAIN]["chores"]:
-                if c["name"] == name:
+                if c["name"].strip().lower() == name.strip().lower():
                     chore = c
+                    _LOGGER.debug("Found matching chore: %s", c)
                     break
             
             if not chore:
-                _LOGGER.error("Chore '%s' not found for completion", name)
+                _LOGGER.error("Chore '%s' not found for completion. Available chores: %s", name, available_chores)
                 return
             
             now = datetime.now()
