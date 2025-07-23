@@ -125,7 +125,7 @@ automation:
 
 ## Configuration File
 
-The integration stores chores in `custom_components/chore_assistant/chores.yaml`. You can manually edit this file, but it's recommended to use the services for consistency.
+The integration stores chores in `chore_assistant_chores.yaml` in your Home Assistant configuration directory. You can manually edit this file, but it's recommended to use the services for consistency.
 
 ## Troubleshooting
 

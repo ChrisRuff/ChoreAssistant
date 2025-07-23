@@ -71,9 +71,7 @@ class ChoreSensor(SensorEntity):
     def state(self):
         """Return the current state of the chore."""
         now = datetime.now()
-        if self._state == STATE_UNKNOWN:
-            self._state = self._calculate_state(now)
-        
+        self._state = self._calculate_state(now)
         return self._state
 
     @property
@@ -103,14 +101,21 @@ class ChoreSensor(SensorEntity):
 
     def _calculate_state(self, now):
         """Calculate the state of the chore."""
-        days_until_due = (self._due_date - now).days
+        # Calculate the difference including time, not just days
+        time_diff = self._due_date - now
+        days_until_due = time_diff.days
+        seconds_until_due = time_diff.total_seconds()
         
         if self._chore_type == CHORE_TYPE_ADAPTIVE:
             # For adaptive chores, show more detailed states
-            if days_until_due < 0:
+            if seconds_until_due < 0:
                 return "overdue"
             elif days_until_due == 0:
-                return "due_today"
+                # Due today - check if it's within the next hour
+                if seconds_until_due < 3600:  # Less than 1 hour
+                    return "due_now"
+                else:
+                    return "due_today"
             elif days_until_due == 1:
                 return "due_tomorrow"
             elif days_until_due <= self._max_days:
@@ -119,10 +124,10 @@ class ChoreSensor(SensorEntity):
                 return "scheduled"
         else:
             # For fixed chores, use simpler states
-            if days_until_due <= 1:
-                return "due"
-            elif days_until_due < 0:
+            if seconds_until_due <= 0:
                 return "overdue"
+            elif days_until_due <= 1:
+                return "due"
             else:
                 return "pending"
 

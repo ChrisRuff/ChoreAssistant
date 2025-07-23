@@ -1,7 +1,3 @@
-# Example chores configuration
-# This file will be automatically created and managed by the integration
-# You can also manually edit this file to add chores
-
 - name: "Clean Kitchen"
   due_date: "2025-07-25"
   frequency: "weekly"

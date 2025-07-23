@@ -50,11 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     
     # Initialize chore storage
-    chore_dir = hass.config.path("custom_components", "chore_assistant")
-    chore_file = os.path.join(chore_dir, "chores.yaml")
-    
-    # Ensure directory exists
-    os.makedirs(chore_dir, exist_ok=True)
+    chore_file = hass.config.path("chore_assistant_chores.yaml")
     
     # Load existing chores
     chores = []
@@ -90,14 +86,23 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     
     def _extract_chore_name(entity_id: str) -> str:
         """Extract chore name from entity ID."""
-        # Handle both formats: sensor.chore_clean_kitchen and clean_kitchen
+        # Handle entity ID format: sensor.chore_clean_kitchen
         if entity_id.startswith("sensor.chore_"):
             name_part = entity_id.replace("sensor.chore_", "")
+        elif "." in entity_id and "chore_" in entity_id:
+            # Handle entity_id format: sensor.chore_clean_kitchen
+            name_part = entity_id.split(".", 1)[1].replace("chore_", "")
         else:
+            # Handle direct chore name: "Clean Kitchen" or "clean_kitchen"
             name_part = entity_id
         
-        # Convert snake_case to Title Case
-        name = name_part.replace("_", " ").title()
+        # If name_part still contains underscores, convert to title case
+        # Otherwise, assume it's already in the correct format
+        if "_" in name_part:
+            name = name_part.replace("_", " ").title()
+        else:
+            name = name_part
+        
         return name
     
     async def add_chore(call: ServiceCall) -> None:
