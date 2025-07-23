@@ -86,7 +86,9 @@ remove_chore:
       required: true
       example: "Clean Kitchen"
       selector:
-        text:
+        entity:
+          domain: sensor
+          integration: chore_assistant
 
 update_chore:
   name: Update Chore
@@ -98,7 +100,9 @@ update_chore:
       required: true
       example: "Clean Kitchen"
       selector:
-        text:
+        entity:
+          domain: sensor
+          integration: chore_assistant
     due_date:
       name: New Due Date
       description: New due date for the chore (YYYY-MM-DD format)
@@ -171,4 +175,6 @@ complete_chore:
       required: true
       example: "Clean Kitchen"
       selector:
-        text:
+        entity:
+          domain: sensor
+          integration: chore_assistant

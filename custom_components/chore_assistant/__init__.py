@@ -88,6 +88,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Register services for managing chores."""
     
+    def _extract_chore_name(entity_id: str) -> str:
+        """Extract chore name from entity ID."""
+        # Handle both formats: sensor.chore_clean_kitchen and clean_kitchen
+        if entity_id.startswith("sensor.chore_"):
+            name_part = entity_id.replace("sensor.chore_", "")
+        else:
+            name_part = entity_id
+        
+        # Convert snake_case to Title Case
+        name = name_part.replace("_", " ").title()
+        return name
+    
     async def add_chore(call: ServiceCall) -> None:
         """Add a new chore."""
         try:
@@ -139,32 +151,12 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         except Exception as e:
             _LOGGER.error("Error adding chore: %s", e)
             raise
-        try:
-            name = call.data[CONF_CHORE_NAME]
-            
-            # Check if chore exists
-            chore_exists = any(chore["name"] == name for chore in hass.data[DOMAIN]["chores"])
-            if not chore_exists:
-                _LOGGER.warning("Chore '%s' not found for removal", name)
-                return
-            
-            # Remove from storage
-            hass.data[DOMAIN]["chores"] = [
-                chore for chore in hass.data[DOMAIN]["chores"]
-                if chore["name"] != name
-            ]
-            _save_chores(hass)
-            
-            _LOGGER.info("Removed chore: %s", name)
-            
-        except Exception as e:
-            _LOGGER.error("Error removing chore: %s", e)
-            raise
 
     async def remove_chore(call: ServiceCall) -> None:
         """Remove an existing chore."""
         try:
-            name = call.data[CONF_CHORE_NAME]
+            entity_id = call.data[CONF_CHORE_NAME]
+            name = _extract_chore_name(entity_id)
 
             # Check if chore exists
             chore_exists = any(chore["name"] == name for chore in hass.data[DOMAIN]["chores"])
@@ -188,7 +180,8 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     async def update_chore(call: ServiceCall) -> None:
         """Update an existing chore."""
         try:
-            name = call.data[CONF_CHORE_NAME]
+            entity_id = call.data[CONF_CHORE_NAME]
+            name = _extract_chore_name(entity_id)
             
             # Find chore
             chore = None
@@ -231,7 +224,8 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     async def complete_chore(call: ServiceCall) -> None:
         """Mark a chore as completed and update due date."""
         try:
-            name = call.data[CONF_CHORE_NAME]
+            entity_id = call.data[CONF_CHORE_NAME]
+            name = _extract_chore_name(entity_id)
             
             # Find chore
             chore = None
