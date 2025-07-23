@@ -160,6 +160,30 @@ async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         except Exception as e:
             _LOGGER.error("Error removing chore: %s", e)
             raise
+
+    async def remove_chore(call: ServiceCall) -> None:
+        """Remove an existing chore."""
+        try:
+            name = call.data[CONF_CHORE_NAME]
+
+            # Check if chore exists
+            chore_exists = any(chore["name"] == name for chore in hass.data[DOMAIN]["chores"])
+            if not chore_exists:
+                _LOGGER.warning("Chore '%s' not found for removal", name)
+                return
+
+            # Remove from storage
+            hass.data[DOMAIN]["chores"] = [
+                chore for chore in hass.data[DOMAIN]["chores"]
+                if chore["name"] != name
+            ]
+            _save_chores(hass)
+
+            _LOGGER.info("Removed chore: %s", name)
+
+        except Exception as e:
+            _LOGGER.error("Error removing chore: %s", e)
+            raise
     
     async def update_chore(call: ServiceCall) -> None:
         """Update an existing chore."""
