@@ -1,33 +1,23 @@
+# Example chores configuration
+# This file will be automatically created and managed by the integration
+# You can also manually edit this file to add chores
+
 - name: "Clean Kitchen"
-  due_date: "2024-07-29"
+  due_date: "2025-07-25"
   frequency: "weekly"
-  chore_type: "fixed"
-  description: "Clean all kitchen surfaces, appliances, and floors"
+  description: "Clean kitchen counters, appliances, and floor"
   assigned_to: "household"
+  chore_type: "fixed"
+  max_days: 7
+  adaptive_window: 3
   last_completed: null
 
 - name: "Take Out Trash"
-  due_date: "2024-07-25"
-  frequency: "biweekly"
-  chore_type: "fixed"
-  description: "Empty all trash bins and take to curb"
-  assigned_to: "John"
-  last_completed: null
-
-- name: "Water Plants"
-  due_date: "2024-07-25"
+  due_date: "2025-07-23"
+  frequency: "daily"
+  description: "Take out kitchen and bathroom trash"
+  assigned_to: "household"
   chore_type: "adaptive"
   max_days: 3
-  adaptive_window: 3
-  description: "Water all indoor plants"
-  assigned_to: "John"
-  last_completed: null
-
-- name: "Check Mail"
-  due_date: "2024-07-24"
-  chore_type: "adaptive"
-  max_days: 2
-  adaptive_window: 2
-  description: "Check and sort mail"
-  assigned_to: "household"
-  last_completed: "2024-07-22"
+  adaptive_window: 1
+  last_completed: "2025-07-22"

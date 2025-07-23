@@ -1,132 +1,148 @@
-# Chore Tracker Integration for Home Assistant
+# Chore Assistant - Home Assistant Integration
 
-A comprehensive chore tracking system that supports both fixed-interval and adaptive scheduling for household tasks.
+A comprehensive chore tracking integration for Home Assistant that allows you to manage household chores through the UI and services.
 
-## Overview
+## Features
 
-This integration provides a flexible chore management system with two distinct chore types:
+- **UI Configuration**: Add and manage chores through Home Assistant's UI
+- **Service-based Management**: Use Home Assistant services to add, update, remove, and complete chores
+- **Flexible Chore Types**: Support for both fixed-schedule and adaptive chores
+- **Detailed Tracking**: Track due dates, completion history, and assignment
+- **Smart Scheduling**: Adaptive chores adjust their schedule based on completion patterns
 
-1. **Fixed Chores**: Traditional recurring chores with set intervals (daily, weekly, monthly, etc.)
-2. **Adaptive Chores**: Smart chores that adjust their next due date based on when they're completed
+## Installation
 
-## Chore Types
+1. Copy the `custom_components/chore_assistant` folder to your Home Assistant `custom_components` directory
+2. Restart Home Assistant
+3. Add the integration through Configuration > Integrations > Add Integration > Chore Assistant
 
-### Fixed Chores
-- **Description**: Chores with predetermined schedules
-- **Use Case**: Regular cleaning, trash day, bill payments
-- **Behavior**: Due dates follow a fixed pattern regardless of completion time
-- **Example**: "Clean Kitchen" every Monday, "Pay Bills" on the 1st of each month
+## Usage
 
-### Adaptive Chores
-- **Description**: Chores that must be completed within a maximum timeframe but adapt their next due date
-- **Use Case**: Tasks that can be flexible but have deadlines
-- **Behavior**: 
-  - Must be completed within `max_days` (default: 3 days)
-  - If completed early (within `adaptive_window`), next due date is set to `adaptive_window` days from completion
-  - If completed late, next due date is set to `max_days` from completion
-- **Example**: "Water Plants" - must be done within 3 days, but if done in 2 days, next due is 3 days from completion
+### Adding Chores via Services
 
-## Services
+You can add chores using the `chore_assistant.add_chore` service:
 
-### chore_tracker.add_chore
-Add a new chore to track.
-
-**Fields:**
-- `name` (required): Chore name
-- `due_date` (required): Initial due date (YYYY-MM-DD)
-- `frequency`: For fixed chores - daily, weekly, biweekly, monthly, quarterly, yearly (default: weekly)
-- `chore_type`: "fixed" or "adaptive" (default: fixed)
-- `max_days`: Maximum days to complete (adaptive type, default: 3)
-- `adaptive_window`: Days until next due when completed early (adaptive type, default: 3)
-- `description`: Additional details
-- `assigned_to`: Person responsible (default: household)
-
-### chore_tracker.remove_chore
-Remove a chore from tracking.
-
-**Fields:**
-- `name` (required): Chore name to remove
-
-### chore_tracker.update_chore
-Update an existing chore's properties.
-
-**Fields:**
-- `name` (required): Chore name to update
-- `due_date`: New due date
-- `frequency`: New frequency (fixed type)
-- `chore_type`: Change chore type
-- `max_days`: New max days (adaptive type)
-- `adaptive_window`: New adaptive window (adaptive type)
-- `description`: New description
-- `assigned_to`: New assignee
-
-### chore_tracker.complete_chore
-Mark a chore as completed and automatically update its next due date based on chore type.
-
-**Fields:**
-- `name` (required): Chore name to complete
-
-## Usage Examples
-
-### Adding a Fixed Chore
 ```yaml
-service: chore_tracker.add_chore
+service: chore_assistant.add_chore
 data:
   name: "Clean Kitchen"
-  due_date: "2024-07-29"
+  due_date: "2025-07-25"
   frequency: "weekly"
-  chore_type: "fixed"
-  description: "Clean all surfaces and appliances"
+  description: "Clean kitchen counters, appliances, and floor"
   assigned_to: "household"
-```
-
-### Adding an Adaptive Chore
-```yaml
-service: chore_tracker.add_chore
-data:
-  name: "Water Plants"
-  due_date: "2024-07-25"
-  chore_type: "adaptive"
-  max_days: 3
+  chore_type: "fixed"
+  max_days: 7
   adaptive_window: 3
-  description: "Water all indoor plants"
-  assigned_to: "John"
 ```
 
-### Completing a Chore
+### Service Reference
+
+#### `chore_assistant.add_chore`
+Add a new chore to track.
+
+| Parameter         | Type    | Required | Description                                                                      |
+| ----------------- | ------- | -------- | -------------------------------------------------------------------------------- |
+| `name`            | string  | Yes      | Name of the chore                                                                |
+| `due_date`        | date    | Yes      | Due date (YYYY-MM-DD format)                                                     |
+| `frequency`       | string  | No       | Frequency: daily, weekly, biweekly, monthly, quarterly, yearly (default: weekly) |
+| `description`     | string  | No       | Description of the chore                                                         |
+| `assigned_to`     | string  | No       | Person or group assigned to the chore (default: household)                       |
+| `chore_type`      | string  | No       | Type: fixed or adaptive (default: fixed)                                         |
+| `max_days`        | integer | No       | Maximum days for adaptive chores (1-30, default: 7)                              |
+| `adaptive_window` | integer | No       | Adaptive window for adaptive chores (1-30, default: 3)                           |
+
+#### `chore_assistant.remove_chore`
+Remove a chore.
+
+| Parameter | Type   | Required | Description                 |
+| --------- | ------ | -------- | --------------------------- |
+| `name`    | string | Yes      | Name of the chore to remove |
+
+#### `chore_assistant.update_chore`
+Update an existing chore.
+
+| Parameter         | Type    | Required | Description                 |
+| ----------------- | ------- | -------- | --------------------------- |
+| `name`            | string  | Yes      | Name of the chore to update |
+| `due_date`        | date    | No       | New due date                |
+| `frequency`       | string  | No       | New frequency               |
+| `description`     | string  | No       | New description             |
+| `assigned_to`     | string  | No       | New assigned person/group   |
+| `chore_type`      | string  | No       | New chore type              |
+| `max_days`        | integer | No       | New max days                |
+| `adaptive_window` | integer | No       | New adaptive window         |
+
+#### `chore_assistant.complete_chore`
+Mark a chore as completed and update its due date.
+
+| Parameter | Type   | Required | Description                   |
+| --------- | ------ | -------- | ----------------------------- |
+| `name`    | string | Yes      | Name of the chore to complete |
+
+### Chore Types
+
+#### Fixed Chores
+- Follow a strict schedule based on frequency
+- Due dates are calculated from the original due date
+- Good for regular maintenance tasks
+
+#### Adaptive Chores
+- Adjust their schedule based on when they're completed
+- If completed early, the next due date is closer
+- If completed late, the next due date is extended
+- Good for tasks that can be flexible
+
+### Automation Examples
+
+#### Daily Chore Reminder
 ```yaml
-service: chore_tracker.complete_chore
-data:
-  name: "Water Plants"
+automation:
+  - alias: "Daily Chore Reminder"
+    trigger:
+      platform: time
+      at: "09:00:00"
+    condition:
+      condition: template
+      value_template: "{{ states('sensor.chore_take_out_trash') == 'due' }}"
+    action:
+      - service: notify.mobile_app
+        data:
+          message: "Don't forget to take out the trash today!"
 ```
 
-## Sensor Attributes
+#### Chore Completion Automation
+```yaml
+automation:
+  - alias: "Complete Chore via Button"
+    trigger:
+      platform: state
+      entity_id: input_button.complete_kitchen_cleaning
+    action:
+      - service: chore_assistant.complete_chore
+        data:
+          name: "Clean Kitchen"
+```
 
-Each chore creates a sensor with these attributes:
-- `description`: Chore description
-- `frequency`: For fixed chores
-- `assigned_to`: Person responsible
-- `due_date`: Current due date
-- `chore_type`: "fixed" or "adaptive"
-- `max_days`: Maximum completion window (adaptive)
-- `adaptive_window`: Early completion window (adaptive)
-- `last_completed`: Date last completed
-- `days_until_due`: Days until due
+## Configuration File
 
-## State Values
+The integration stores chores in `custom_components/chore_assistant/chores.yaml`. You can manually edit this file, but it's recommended to use the services for consistency.
 
-### Fixed Chores
-- `pending`: Chore is scheduled but not due yet
-- `due`: Chore is due within 1 day
-- `overdue`: Chore is past due
+## Troubleshooting
 
-### Adaptive Chores
-- `scheduled`: Chore is scheduled beyond the max_days window
-- `due_in_X_days`: Chore is due in X days (where X is 1-3)
-- `due_today`: Chore is due today
-- `due_tomorrow`: Chore is due tomorrow
-- `overdue`: Chore is past due
+### Common Issues
 
-## Migration
+1. **Chores not appearing**: Ensure the integration is properly configured and restart Home Assistant
+2. **Service errors**: Check the Home Assistant logs for detailed error messages
+3. **YAML syntax errors**: If editing the chores.yaml file manually, ensure proper YAML formatting
 
-Existing chores without a `chore_type` will default to "fixed" type, maintaining backward compatibility.
+### Logs
+Check the Home Assistant logs for any errors related to the chore_assistant integration.
+
+## Development
+
+To contribute or modify this integration:
+
+1. The main integration logic is in `__init__.py`
+2. Sensor definitions are in `sensor.py`
+3. Configuration flow is in `config_flow.py`
+4. Constants are defined in `const.py`

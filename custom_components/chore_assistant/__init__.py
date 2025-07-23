@@ -74,21 +74,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["chore_file"] = chore_file
     
     # Register services
-    await _register_services(hass)
+    await _register_services(hass, entry)
     
-    # Create sensors for existing chores
-    for chore in chores:
-        hass.async_create_task(
-            hass.helpers.entity_platform.async_add_entities([ChoreSensor(chore)])
-        )
+    # Forward the setup to the sensor platform
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    return True
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-async def _register_services(hass: HomeAssistant) -> None:
+async def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Register services for managing chores."""
     
     async def add_chore(call: ServiceCall) -> None:
@@ -131,22 +128,17 @@ async def _register_services(hass: HomeAssistant) -> None:
             hass.data[DOMAIN]["chores"].append(new_chore)
             _save_chores(hass)
             
-            # Create sensor
+            # Create sensor - reload the platform to pick up new entities
             try:
-                hass.async_create_task(
-                    hass.helpers.entity_platform.async_add_entities([ChoreSensor(new_chore)])
-                )
+                await hass.config_entries.async_reload(entry.entry_id)
             except Exception as e:
-                _LOGGER.warning("Failed to create sensor for chore '%s': %s", name, e)
+                _LOGGER.warning("Failed to reload platform for new chore '%s': %s", name, e)
             
             _LOGGER.info("Added chore: %s", name)
             
         except Exception as e:
             _LOGGER.error("Error adding chore: %s", e)
             raise
-    
-    async def remove_chore(call: ServiceCall) -> None:
-        """Remove a chore."""
         try:
             name = call.data[CONF_CHORE_NAME]
             
@@ -344,94 +336,3 @@ def _save_chores(hass: HomeAssistant) -> None:
     except Exception as e:
         _LOGGER.error("Error saving chores: %s", e)
         raise
-
-class ChoreSensor(SensorEntity):
-    """Sensor to track chore states."""
-
-    def __init__(self, chore_data):
-        """Initialize the sensor."""
-        self._name = chore_data["name"]
-        self._due_date = datetime.strptime(chore_data["due_date"], "%Y-%m-%d")
-        self._frequency = chore_data.get("frequency", DEFAULT_FREQUENCY)
-        self._description = chore_data.get("description", DEFAULT_DESCRIPTION)
-        self._assigned_to = chore_data.get("assigned_to", DEFAULT_ASSIGNED_TO)
-        self._chore_type = chore_data.get("chore_type", DEFAULT_CHORE_TYPE)
-        self._max_days = chore_data.get("max_days", DEFAULT_MAX_DAYS)
-        self._adaptive_window = chore_data.get("adaptive_window", DEFAULT_ADAPTIVE_WINDOW)
-        self._last_completed = chore_data.get("last_completed")
-        self._state = STATE_UNKNOWN
-        self._icon = "mdi:check-circle-outline"
-        self._unit = "days"
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"Chore {self._name}"
-
-    @property
-    def state(self):
-        """Return the current state of the chore."""
-        now = datetime.now()
-        if self._state == STATE_UNKNOWN:
-            self._state = self._calculate_state(now)
-        
-        return self._state
-
-    @property
-    def icon(self):
-        """Return the icon for the sensor."""
-        return self._icon
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit of measurement."""
-        return self._unit
-
-    @property
-    def extra_state_attributes(self):
-        """Return extra state attributes."""
-        return {
-            "description": self._description,
-            "frequency": self._frequency,
-            "assigned_to": self._assigned_to,
-            "due_date": self._due_date.strftime("%Y-%m-%d"),
-            "chore_type": self._chore_type,
-            "max_days": self._max_days,
-            "adaptive_window": self._adaptive_window,
-            "last_completed": self._last_completed,
-            "days_until_due": (self._due_date - datetime.now()).days,
-        }
-
-    def _calculate_state(self, now):
-        """Calculate the state of the chore."""
-        days_until_due = (self._due_date - now).days
-        
-        if self._chore_type == CHORE_TYPE_ADAPTIVE:
-            # For adaptive chores, show more detailed states
-            if days_until_due < 0:
-                return "overdue"
-            elif days_until_due == 0:
-                return "due_today"
-            elif days_until_due == 1:
-                return "due_tomorrow"
-            elif days_until_due <= self._max_days:
-                return f"due_in_{days_until_due}_days"
-            else:
-                return "scheduled"
-        else:
-            # For fixed chores, use simpler states
-            if days_until_due <= 1:
-                return "due"
-            elif days_until_due < 0:
-                return "overdue"
-            else:
-                return "pending"
-
-    async def async_set_state(self, state):
-        """Set the state of the chore."""
-        self._state = state
-        self.async_schedule_update_ha_state()
-
-    async def async_added_to_hass(self):
-        """Handle when the entity is added to Home Assistant."""
-        self.async_update_ha_state()
