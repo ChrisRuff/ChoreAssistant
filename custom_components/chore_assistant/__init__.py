@@ -134,8 +134,8 @@ async def async_remove_chore(call: ServiceCall) -> None:
     entity_id = call.data.get("name")
     
     # Extract chore name from entity ID
-    if entity_id.startswith("sensor.chore_"):
-        name = entity_id.replace("sensor.chore_", "")
+    if entity_id.startswith("sensor.chore_assistant_"):
+        name = entity_id.replace("sensor.chore_assistant_", "")
     else:
         _LOGGER.warning("Invalid entity ID for chore removal: %s", entity_id)
         return
@@ -161,8 +161,8 @@ async def async_complete_chore(call: ServiceCall) -> None:
     entity_id = call.data.get("name")
     
     # Extract chore name from entity ID
-    if entity_id.startswith("sensor.chore_"):
-        name = entity_id.replace("sensor.chore_", "")
+    if entity_id.startswith("sensor.chore_assistant_"):
+        name = entity_id.replace("sensor.chore_assistant_", "")
     else:
         _LOGGER.warning("Invalid entity ID for chore completion: %s", entity_id)
         return
