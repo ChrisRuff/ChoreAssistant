@@ -72,7 +72,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     # Populate entity ID to chore name mapping for existing chores
     for chore_name in CHORES:
-        entity_id = f"sensor.chore_assistant_{chore_name.lower()}"
+        entity_id = f"sensor.chore_assistant_{chore_name.lower().replace(' ', '_')}"
         ENTITY_ID_TO_CHORE_NAME[entity_id] = chore_name
 
     # Register services
@@ -142,7 +142,7 @@ async def async_add_chore(call: ServiceCall) -> None:
     CHORES[name] = chore_data
 
     # Add to entity ID mapping
-    entity_id = f"sensor.chore_assistant_{name.lower()}"
+    entity_id = f"sensor.chore_assistant_{name.lower().replace(' ', '_')}"
     ENTITY_ID_TO_CHORE_NAME[entity_id] = name
 
     _LOGGER.info("Added chore: %s", name)
