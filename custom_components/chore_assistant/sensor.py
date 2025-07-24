@@ -1,141 +1,112 @@
-"""Sensor platform for Chore Tracker integration."""
+"""Sensor platform for the Chore Assistant."""
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any, Dict, Optional, List
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import STATE_UNKNOWN
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from .const import (
-    DOMAIN,
-    CHORE_TYPE_FIXED,
-    CHORE_TYPE_ADAPTIVE,
-    DEFAULT_FREQUENCY,
-    DEFAULT_DESCRIPTION,
-    DEFAULT_ASSIGNED_TO,
-    DEFAULT_CHORE_TYPE,
-    DEFAULT_MAX_DAYS,
-    DEFAULT_ADAPTIVE_WINDOW,
-)
+from .const import DOMAIN, STATE_COMPLETED, STATE_OVERDUE, STATE_PENDING
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
+async def async_setup_platform(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config: ConfigType,
     async_add_entities: AddEntitiesCallback,
+    discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
-    """Set up Chore Tracker sensors from a config entry."""
-    chores = hass.data[DOMAIN].get("chores", [])
-    
+    """Set up the Chore Assistant sensor platform."""
+    # Create sensor entities for each chore
+    chores = hass.data[DOMAIN]["chores"]
     entities = []
-    for chore in chores:
-        entities.append(ChoreSensor(chore))
     
-    if entities:
-        async_add_entities(entities)
+    for chore_name in chores:
+        entities.append(ChoreSensor(hass, chore_name))
+    
+    async_add_entities(entities)
+    
+    # Set up listener for chore updates
+    @callback
+    def async_chore_updated(event):
+        """Handle chore updates."""
+        # Create new sensors for any new chores
+        current_entities = {entity.chore_name: entity for entity in entities}
+        chores = hass.data[DOMAIN]["chores"]
+        
+        new_entities = []
+        for chore_name in chores:
+            if chore_name not in current_entities:
+                new_entities.append(ChoreSensor(hass, chore_name))
+        
+        if new_entities:
+            async_add_entities(new_entities)
+    
+    hass.bus.async_listen(f"{DOMAIN}_updated", async_chore_updated)
+
+
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Set up Chore Assistant sensors from a config entry."""
+    # This integration doesn't use config entries
+    pass
 
 
 class ChoreSensor(SensorEntity):
-    """Sensor to track chore states."""
+    """Representation of a Chore sensor."""
 
-    def __init__(self, chore_data):
-        """Initialize the sensor."""
-        self._name = chore_data["name"]
-        self._due_date = datetime.strptime(chore_data["due_date"], "%Y-%m-%d")
-        self._frequency = chore_data.get("frequency", DEFAULT_FREQUENCY)
-        self._description = chore_data.get("description", DEFAULT_DESCRIPTION)
-        self._assigned_to = chore_data.get("assigned_to", DEFAULT_ASSIGNED_TO)
-        self._chore_type = chore_data.get("chore_type", DEFAULT_CHORE_TYPE)
-        self._max_days = chore_data.get("max_days", DEFAULT_MAX_DAYS)
-        self._adaptive_window = chore_data.get("adaptive_window", DEFAULT_ADAPTIVE_WINDOW)
-        self._last_completed = chore_data.get("last_completed")
-        self._state = STATE_UNKNOWN
-        self._icon = "mdi:check-circle-outline"
-        self._unit = "days"
+    def __init__(self, hass: HomeAssistant, chore_name: str) -> None:
+        """Initialize the Chore sensor."""
+        self.hass = hass
+        self.chore_name = chore_name
+        self._state = None
+        self._attrs = {}
 
     @property
-    def unique_id(self):
-        """Return a unique ID for this sensor."""
-        return f"{DOMAIN}_{self._name.lower().replace(' ', '_')}"
-
-    @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the sensor."""
-        return f"Chore {self._name}"
+        return f"Chore {self.chore_name}"
 
     @property
-    def state(self):
-        """Return the current state of the chore."""
-        now = datetime.now()
-        self._state = self._calculate_state(now)
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return f"chore_assistant_{self.chore_name}"
+
+    @property
+    def state(self) -> str:
+        """Return the state of the sensor."""
         return self._state
 
     @property
-    def icon(self):
-        """Return the icon for the sensor."""
-        return self._icon
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return the state attributes."""
+        return self._attrs
 
     @property
-    def unit_of_measurement(self):
-        """Return the unit of measurement."""
-        return self._unit
-
-    @property
-    def extra_state_attributes(self):
-        """Return extra state attributes."""
-        return {
-            "description": self._description,
-            "frequency": self._frequency,
-            "assigned_to": self._assigned_to,
-            "due_date": self._due_date.strftime("%Y-%m-%d"),
-            "chore_type": self._chore_type,
-            "max_days": self._max_days,
-            "adaptive_window": self._adaptive_window,
-            "last_completed": self._last_completed,
-            "days_until_due": (self._due_date - datetime.now()).days,
-        }
-
-    def _calculate_state(self, now):
-        """Calculate the state of the chore."""
-        # Calculate the difference including time, not just days
-        time_diff = self._due_date - now
-        days_until_due = time_diff.days
-        seconds_until_due = time_diff.total_seconds()
-        
-        if self._chore_type == CHORE_TYPE_ADAPTIVE:
-            # For adaptive chores, show more detailed states
-            if seconds_until_due < 0:
-                return "overdue"
-            elif days_until_due == 0:
-                # Due today - check if it's within the next hour
-                if seconds_until_due < 3600:  # Less than 1 hour
-                    return "due_now"
-                else:
-                    return "due_today"
-            elif days_until_due == 1:
-                return "due_tomorrow"
-            elif days_until_due <= self._max_days:
-                return f"due_in_{days_until_due}_days"
-            else:
-                return "scheduled"
+    def icon(self) -> str:
+        """Return the icon to use in the frontend."""
+        if self._state == STATE_COMPLETED:
+            return "mdi:check-circle"
+        elif self._state == STATE_OVERDUE:
+            return "mdi:alert-circle"
         else:
-            # For fixed chores, use simpler states
-            if seconds_until_due <= 0:
-                return "overdue"
-            elif days_until_due <= 1:
-                return "due"
-            else:
-                return "pending"
+            return "mdi:checkbox-blank-circle-outline"
 
-    async def async_set_state(self, state):
-        """Set the state of the chore."""
-        self._state = state
-        self.async_schedule_update_ha_state()
-
-    async def async_added_to_hass(self):
-        """Handle when the entity is added to Home Assistant."""
-        self.async_update_ha_state()
+    async def async_update(self) -> None:
+        """Fetch new state data for the sensor."""
+        chores = self.hass.data[DOMAIN]["chores"]
+        
+        if self.chore_name in chores:
+            chore_data = chores[self.chore_name]
+            self._state = chore_data["state"]
+            
+            # Set attributes
+            self._attrs = {}
+            for key, value in chore_data.items():
+                if key != "state":
+                    self._attrs[key] = value
+        else:
+            # Chore was removed
+            self._state = "removed"

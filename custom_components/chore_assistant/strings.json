@@ -1,0 +1,43 @@
+{
+    "title": "Chore Assistant",
+    "services": {
+        "add_chore": {
+            "name": "Add Chore",
+            "description": "Add a new chore to track",
+            "fields": {
+                "name": {
+                    "name": "Name",
+                    "description": "The name of the chore"
+                },
+                "due_date": {
+                    "name": "Due Date",
+                    "description": "The date when the chore is due (optional)"
+                },
+                "assigned_to": {
+                    "name": "Assigned To",
+                    "description": "Person assigned to the chore (optional)"
+                }
+            }
+        },
+        "remove_chore": {
+            "name": "Remove Chore",
+            "description": "Remove a chore from tracking",
+            "fields": {
+                "name": {
+                    "name": "Name",
+                    "description": "The name of the chore to remove"
+                }
+            }
+        },
+        "complete_chore": {
+            "name": "Complete Chore",
+            "description": "Mark a chore as completed",
+            "fields": {
+                "name": {
+                    "name": "Name",
+                    "description": "The name of the chore to complete"
+                }
+            }
+        }
+    }
+}
