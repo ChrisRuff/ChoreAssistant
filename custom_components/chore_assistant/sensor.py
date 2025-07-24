@@ -77,6 +77,9 @@ class ChoreSensor(SensorEntity):
         self._state = None
         self._attrs = {}
         
+        # Set the entity_id explicitly
+        self.entity_id = f"sensor.chore_assistant_{chore_name.lower().replace(' ', '_')}"
+        
         # Initialize state from chore data
         self._update_from_chore_data()
         
@@ -111,7 +114,7 @@ class ChoreSensor(SensorEntity):
 
     @property
     def name(self) -> str:
-        """Return the name of the sensor."""
+        """Return the display name of the sensor."""
         return self.chore_name
 
     @property
