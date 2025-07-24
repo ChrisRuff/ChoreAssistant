@@ -79,6 +79,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         hass, async_check_overdue_chores, hour=0, minute=0, second=0
     )
 
+    # Forward setup to sensor platform
+    hass.async_create_task(
+        hass.helpers.discovery.async_load_platform("sensor", DOMAIN, {}, config)
+    )
+
     return True
 
 

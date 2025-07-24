@@ -11,5 +11,8 @@
     "issue_tracker": "https://github.com/ChrisRuff/ChoreAssistant/issues",
     "requirements": [],
     "version": "1.0.0",
-    "integration_type": "hub"
+    "integration_type": "hub",
+    "platforms": [
+        "sensor"
+    ]
 }
