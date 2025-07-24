@@ -16,6 +16,23 @@ _LOGGER = logging.getLogger(__name__)
 EXISTING_ENTITIES = set()
 
 
+async def async_chore_updated(hass: HomeAssistant, async_add_entities: AddEntitiesCallback, event):
+    """Handle chore updates."""
+    # Create new sensors for any new chores
+    chores = hass.data[DOMAIN]["chores"]
+    
+    new_entities = []
+    for chore_name in chores:
+        # Check if entity already exists
+        unique_id = f"chore_assistant_{chore_name}"
+        if unique_id not in EXISTING_ENTITIES:
+            new_entities.append(ChoreSensor(hass, chore_name))
+            EXISTING_ENTITIES.add(unique_id)
+    
+    if new_entities:
+        async_add_entities(new_entities)
+
+
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
@@ -38,24 +55,7 @@ async def async_setup_platform(
         async_add_entities(entities)
     
     # Set up listener for chore updates
-    @callback
-    def async_chore_updated(event):
-        """Handle chore updates."""
-        # Create new sensors for any new chores
-        chores = hass.data[DOMAIN]["chores"]
-        
-        new_entities = []
-        for chore_name in chores:
-            # Check if entity already exists
-            unique_id = f"chore_assistant_{chore_name}"
-            if unique_id not in EXISTING_ENTITIES:
-                new_entities.append(ChoreSensor(hass, chore_name))
-                EXISTING_ENTITIES.add(unique_id)
-        
-        if new_entities:
-            async_add_entities(new_entities)
-    
-    hass.bus.async_listen(f"{DOMAIN}_updated", async_chore_updated)
+    hass.bus.async_listen(f"{DOMAIN}_updated", lambda event: async_chore_updated(hass, async_add_entities, event))
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
