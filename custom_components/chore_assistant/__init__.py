@@ -25,6 +25,9 @@ _LOGGER = logging.getLogger(__name__)
 # Storage for chores
 CHORES = {}
 
+# Home Assistant instance
+_HASS = None
+
 # Service schemas
 ADD_CHORE_SCHEMA = vol.Schema(
     {
@@ -41,7 +44,11 @@ COMPLETE_CHORE_SCHEMA = vol.Schema({vol.Required("name"): cv.string})
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Chore Assistant component."""
+    global _HASS
     _LOGGER.info("Setting up Chore Assistant component")
+
+    # Store Home Assistant instance
+    _HASS = hass
 
     # Initialize chores storage
     hass.data[DOMAIN] = {"chores": CHORES}
@@ -77,6 +84,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_add_chore(call: ServiceCall) -> None:
     """Add a new chore."""
+    global _HASS
     name = call.data.get("name")
     due_date = call.data.get("due_date")
     assigned_to = call.data.get("assigned_to")
@@ -103,11 +111,12 @@ async def async_add_chore(call: ServiceCall) -> None:
     _LOGGER.info("Added chore: %s", name)
 
     # Notify entities to update
-    hass.bus.async_fire(f"{DOMAIN}_updated")
+    _HASS.bus.async_fire(f"{DOMAIN}_updated")
 
 
 async def async_remove_chore(call: ServiceCall) -> None:
     """Remove a chore."""
+    global _HASS
     name = call.data.get("name")
 
     if name in CHORES:
@@ -115,7 +124,7 @@ async def async_remove_chore(call: ServiceCall) -> None:
         _LOGGER.info("Removed chore: %s", name)
         
         # Remove entity if it exists
-        entity_registry = async_get_entity_registry(hass)
+        entity_registry = async_get_entity_registry(_HASS)
         entity_id = f"sensor.chore_{name.lower().replace(' ', '_')}"
         if entity_registry.async_get(entity_id):
             entity_registry.async_remove(entity_id)
@@ -123,11 +132,12 @@ async def async_remove_chore(call: ServiceCall) -> None:
         _LOGGER.warning("Chore '%s' not found", name)
 
     # Notify entities to update
-    hass.bus.async_fire(f"{DOMAIN}_updated")
+    _HASS.bus.async_fire(f"{DOMAIN}_updated")
 
 
 async def async_complete_chore(call: ServiceCall) -> None:
     """Mark a chore as completed."""
+    global _HASS
     name = call.data.get("name")
 
     if name in CHORES:
@@ -138,4 +148,4 @@ async def async_complete_chore(call: ServiceCall) -> None:
         _LOGGER.warning("Chore '%s' not found", name)
 
     # Notify entities to update
-    hass.bus.async_fire(f"{DOMAIN}_updated")
+    _HASS.bus.async_fire(f"{DOMAIN}_updated")
