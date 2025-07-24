@@ -9,6 +9,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.discovery import async_load_platform
 
 from .const import (
     DOMAIN,
@@ -81,7 +82,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     # Forward setup to sensor platform
     hass.async_create_task(
-        hass.helpers.discovery.async_load_platform("sensor", DOMAIN, {}, config)
+        async_load_platform(hass, "sensor", DOMAIN, {}, config)
     )
 
     return True
