@@ -32,6 +32,9 @@ ENTITY_ID_TO_CHORE_NAME = {}
 # Home Assistant instance
 _HASS = None
 
+# Platforms supported by this integration
+PLATFORMS = ["sensor"]
+
 # Service schemas
 ADD_CHORE_SCHEMA = vol.Schema(
     {
@@ -52,6 +55,8 @@ COMPLETE_CHORE_SCHEMA = vol.Schema(
         vol.Required("name"): cv.entity_domain("sensor"),
     }
 )
+
+LIST_CHORES_SCHEMA = vol.Schema({})
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -80,6 +85,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(
         DOMAIN, SERVICE_COMPLETE_CHORE, async_complete_chore, schema=COMPLETE_CHORE_SCHEMA
     )
+    hass.services.async_register(
+        DOMAIN, "list_chores", async_list_chores, schema=LIST_CHORES_SCHEMA
+    )
 
     # Schedule daily check for overdue chores
     async def async_check_overdue_chores(time):
@@ -97,9 +105,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
 
     # Forward setup to sensor platform
+    _LOGGER.info("Loading sensor platform")
     hass.async_create_task(
         async_load_platform(hass, "sensor", DOMAIN, {}, config)
     )
+
+    _LOGGER.info("Chore Assistant component setup complete")
 
     return True
 
@@ -191,3 +202,16 @@ async def async_complete_chore(call: ServiceCall) -> None:
 
     # Notify entities to update
     _HASS.bus.async_fire(f"{DOMAIN}_updated")
+
+
+async def async_list_chores(call: ServiceCall) -> None:
+    """List all chores."""
+    global _HASS
+    _LOGGER.info("Listing all chores:")
+    for chore_name, chore_data in CHORES.items():
+        _LOGGER.info("  - %s: %s", chore_name, chore_data)
+    
+    # List entity ID mapping
+    _LOGGER.info("Entity ID mapping:")
+    for entity_id, chore_name in ENTITY_ID_TO_CHORE_NAME.items():
+        _LOGGER.info("  - %s -> %s", entity_id, chore_name)

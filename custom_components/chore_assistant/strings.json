@@ -24,8 +24,8 @@
             "description": "Remove a chore from tracking",
             "fields": {
                 "name": {
-                    "name": "Chore",
-                    "description": "The chore to remove"
+                    "name": "Name",
+                    "description": "The name of the chore to remove"
                 }
             }
         },
@@ -34,10 +34,14 @@
             "description": "Mark a chore as completed",
             "fields": {
                 "name": {
-                    "name": "Chore",
-                    "description": "The chore to complete"
+                    "name": "Name",
+                    "description": "The name of the chore to complete"
                 }
             }
+        },
+        "list_chores": {
+            "name": "List Chores",
+            "description": "List all chores"
         }
     }
 }

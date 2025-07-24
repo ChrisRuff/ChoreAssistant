@@ -46,3 +46,7 @@ complete_chore:
         entity:
           domain: sensor
           integration: chore_assistant
+
+list_chores:
+  name: List Chores
+  description: List all chores
