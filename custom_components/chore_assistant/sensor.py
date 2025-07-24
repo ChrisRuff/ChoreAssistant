@@ -29,7 +29,7 @@ async def async_setup_platform(
     
     for chore_name in chores:
         # Check if entity already exists
-        unique_id = f"chore_assistant_{chore_name}"
+        unique_id = f"chore_{chore_name}"
         if unique_id not in EXISTING_ENTITIES:
             entities.append(ChoreSensor(hass, chore_name))
             EXISTING_ENTITIES.add(unique_id)
@@ -47,7 +47,7 @@ async def async_setup_platform(
         new_entities = []
         for chore_name in chores:
             # Check if entity already exists
-            unique_id = f"chore_assistant_{chore_name}"
+            unique_id = f"chore_{chore_name}"
             if unique_id not in EXISTING_ENTITIES:
                 new_entities.append(ChoreSensor(hass, chore_name))
                 EXISTING_ENTITIES.add(unique_id)
@@ -82,7 +82,7 @@ class ChoreSensor(SensorEntity):
     @property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return f"chore_assistant_{self.chore_name}"
+        return f"chore_{self.chore_name}"
 
     @property
     def state(self) -> str:
