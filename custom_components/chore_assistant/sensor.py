@@ -98,7 +98,11 @@ class ChoreSensor(SensorEntity):
             self._attrs = {}
             for key, value in chore_data.items():
                 if key != "state":
-                    self._attrs[key] = value
+                    # Convert date objects to strings for JSON serialization
+                    if hasattr(value, 'isoformat'):
+                        self._attrs[key] = value.isoformat()
+                    else:
+                        self._attrs[key] = value
         else:
             # Chore was removed
             self._state = "removed"

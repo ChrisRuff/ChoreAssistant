@@ -39,7 +39,8 @@ PLATFORMS = ["sensor"]
 ADD_CHORE_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
-        vol.Optional("due_date"): cv.date,
+        vol.Required("due_date"): cv.date,
+        vol.Required("interval"): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Optional("assigned_to"): cv.string,
     }
 )
@@ -57,6 +58,37 @@ COMPLETE_CHORE_SCHEMA = vol.Schema(
 )
 
 LIST_CHORES_SCHEMA = vol.Schema({})
+
+
+async def async_check_overdue_chores(time):
+    """Check for overdue chores and reset recurring chores."""
+    global _HASS
+    now = datetime.now().date()
+    for chore_name, chore_data in CHORES.items():
+        # Check if pending chores are overdue
+        if chore_data["state"] == STATE_PENDING and "due_date" in chore_data:
+            if chore_data["due_date"] < now:
+                CHORES[chore_name]["state"] = STATE_OVERDUE
+                _LOGGER.info("Chore '%s' is now overdue", chore_name)
+        
+        # Check if completed chores should be reset to pending
+        elif chore_data["state"] == STATE_COMPLETED and "next_due_date" in chore_data:
+            if chore_data["next_due_date"] <= now:
+                # Reset the chore to pending with new due date
+                CHORES[chore_name]["state"] = STATE_PENDING
+                CHORES[chore_name]["due_date"] = chore_data["next_due_date"]
+                
+                # Remove completed_date and next_due_date as they're no longer relevant
+                if "completed_date" in CHORES[chore_name]:
+                    del CHORES[chore_name]["completed_date"]
+                if "next_due_date" in CHORES[chore_name]:
+                    del CHORES[chore_name]["next_due_date"]
+                
+                _LOGGER.info("Chore '%s' reset to pending, due: %s", chore_name, chore_data["next_due_date"])
+    
+    # Notify entities to update
+    if _HASS:
+        _HASS.bus.async_fire(f"{DOMAIN}_updated")
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -88,18 +120,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(
         DOMAIN, "list_chores", async_list_chores, schema=LIST_CHORES_SCHEMA
     )
+    hass.services.async_register(
+        DOMAIN, "check_recurring", async_check_recurring_chores, schema=LIST_CHORES_SCHEMA
+    )
 
-    # Schedule daily check for overdue chores
-    async def async_check_overdue_chores(time):
-        """Check for overdue chores."""
-        now = datetime.now().date()
-        for chore_name, chore_data in CHORES.items():
-            if chore_data["state"] != STATE_COMPLETED and "due_date" in chore_data:
-                if chore_data["due_date"] < now:
-                    CHORES[chore_name]["state"] = STATE_OVERDUE
-                    _LOGGER.info("Chore '%s' is now overdue", chore_name)
-
-    # Check for overdue chores every day at midnight
+    # Schedule daily check for overdue chores and recurring chores
+    # Check for overdue chores and reset recurring chores every day at midnight
     async_track_time_change(
         hass, async_check_overdue_chores, hour=0, minute=0, second=0
     )
@@ -119,7 +145,8 @@ async def async_add_chore(call: ServiceCall) -> None:
     """Add a new chore."""
     global _HASS
     name = call.data.get("name")
-    due_date = call.data.get("due_date")
+    due_date = call.data.get("due_date")  # Now required
+    interval = call.data.get("interval")  # Now required (in days)
     assigned_to = call.data.get("assigned_to")
 
     # Create chore data
@@ -127,13 +154,13 @@ async def async_add_chore(call: ServiceCall) -> None:
         "name": name,
         "state": STATE_PENDING,
         "created_date": datetime.now().date(),
+        "due_date": due_date,
+        "interval": interval,
     }
 
-    if due_date:
-        chore_data["due_date"] = due_date
-        # Check if already overdue
-        if due_date < datetime.now().date():
-            chore_data["state"] = STATE_OVERDUE
+    # Check if already overdue
+    if due_date < datetime.now().date():
+        chore_data["state"] = STATE_OVERDUE
 
     if assigned_to:
         chore_data["assigned_to"] = assigned_to
@@ -196,7 +223,14 @@ async def async_complete_chore(call: ServiceCall) -> None:
     if name in CHORES:
         CHORES[name]["state"] = STATE_COMPLETED
         CHORES[name]["completed_date"] = datetime.now().date()
-        _LOGGER.info("Completed chore: %s", name)
+        
+        # Calculate next due date based on interval
+        current_due_date = CHORES[name]["due_date"]
+        interval = CHORES[name]["interval"]
+        next_due_date = current_due_date + timedelta(days=interval)
+        CHORES[name]["next_due_date"] = next_due_date
+        
+        _LOGGER.info("Completed chore: %s, next due: %s", name, next_due_date)
     else:
         _LOGGER.warning("Chore '%s' not found", name)
 
@@ -215,3 +249,11 @@ async def async_list_chores(call: ServiceCall) -> None:
     _LOGGER.info("Entity ID mapping:")
     for entity_id, chore_name in ENTITY_ID_TO_CHORE_NAME.items():
         _LOGGER.info("  - %s -> %s", entity_id, chore_name)
+
+
+async def async_check_recurring_chores(call: ServiceCall) -> None:
+    """Manually check for recurring chores that need to be reset."""
+    global _HASS
+    _LOGGER.info("Manually checking for recurring chores...")
+    await async_check_overdue_chores(None)
+    _LOGGER.info("Recurring chore check completed")

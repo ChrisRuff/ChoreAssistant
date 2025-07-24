@@ -10,10 +10,19 @@ add_chore:
         text:
     due_date:
       name: Due Date
-      description: The date when the chore is due (optional)
-      required: false
+      description: The date when the chore is due
+      required: true
       selector:
         date:
+    interval:
+      name: Interval (Days)
+      description: How many days between recurring instances of this chore
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 365
+          step: 1
     assigned_to:
       name: Assigned To
       description: Person assigned to the chore (optional)
@@ -50,3 +59,7 @@ complete_chore:
 list_chores:
   name: List Chores
   description: List all chores
+
+check_recurring:
+  name: Check Recurring Chores
+  description: Manually check for recurring chores that need to be reset to pending
