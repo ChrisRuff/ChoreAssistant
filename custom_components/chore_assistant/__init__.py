@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
+from homeassistant.helpers.event import async_track_time_change
 
 from .const import (
     DOMAIN,
@@ -65,12 +66,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 if chore_data["due_date"] < now:
                     CHORES[chore_name]["state"] = STATE_OVERDUE
                     _LOGGER.info("Chore '%s' is now overdue", chore_name)
-        # Trigger entity updates
-        await hass.helpers.entity_component.async_update_entity_component(DOMAIN)
 
     # Check for overdue chores every day at midnight
-    hass.helpers.event.async_track_time_change(
-        async_check_overdue_chores, hour=0, minute=0, second=0
+    async_track_time_change(
+        hass, async_check_overdue_chores, hour=0, minute=0, second=0
     )
 
     return True
