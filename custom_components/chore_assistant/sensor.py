@@ -55,7 +55,10 @@ async def async_setup_platform(
         async_add_entities(entities)
     
     # Set up listener for chore updates
-    hass.bus.async_listen(f"{DOMAIN}_updated", lambda event: async_chore_updated(hass, async_add_entities, event))
+    async def _async_chore_updated(event):
+        await async_chore_updated(hass, async_add_entities, event)
+    
+    hass.bus.async_listen(f"{DOMAIN}_updated", _async_chore_updated)
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
