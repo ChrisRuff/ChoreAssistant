@@ -26,6 +26,9 @@ _LOGGER = logging.getLogger(__name__)
 # Storage for chores
 CHORES = {}
 
+# Mapping from entity IDs to chore names
+ENTITY_ID_TO_CHORE_NAME = {}
+
 # Home Assistant instance
 _HASS = None
 
@@ -61,6 +64,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     # Initialize chores storage
     hass.data[DOMAIN] = {"chores": CHORES}
+
+    # Populate entity ID to chore name mapping for existing chores
+    for chore_name in CHORES:
+        entity_id = f"sensor.chore_assistant_{chore_name.lower()}"
+        ENTITY_ID_TO_CHORE_NAME[entity_id] = chore_name
 
     # Register services
     hass.services.async_register(
@@ -122,6 +130,10 @@ async def async_add_chore(call: ServiceCall) -> None:
     # Add to storage
     CHORES[name] = chore_data
 
+    # Add to entity ID mapping
+    entity_id = f"sensor.chore_assistant_{name.lower()}"
+    ENTITY_ID_TO_CHORE_NAME[entity_id] = name
+
     _LOGGER.info("Added chore: %s", name)
 
     # Notify entities to update
@@ -133,15 +145,18 @@ async def async_remove_chore(call: ServiceCall) -> None:
     global _HASS
     entity_id = call.data.get("name")
     
-    # Extract chore name from entity ID
-    if entity_id.startswith("sensor.chore_assistant_"):
-        name = entity_id.replace("sensor.chore_assistant_", "")
+    # Get chore name from entity ID mapping
+    if entity_id in ENTITY_ID_TO_CHORE_NAME:
+        name = ENTITY_ID_TO_CHORE_NAME[entity_id]
     else:
-        _LOGGER.warning("Invalid entity ID for chore removal: %s", entity_id)
+        _LOGGER.warning("Chore with entity ID '%s' not found", entity_id)
         return
 
     if name in CHORES:
         del CHORES[name]
+        # Remove from entity ID mapping
+        if entity_id in ENTITY_ID_TO_CHORE_NAME:
+            del ENTITY_ID_TO_CHORE_NAME[entity_id]
         _LOGGER.info("Removed chore: %s", name)
         
         # Remove entity if it exists
@@ -160,11 +175,11 @@ async def async_complete_chore(call: ServiceCall) -> None:
     global _HASS
     entity_id = call.data.get("name")
     
-    # Extract chore name from entity ID
-    if entity_id.startswith("sensor.chore_assistant_"):
-        name = entity_id.replace("sensor.chore_assistant_", "")
+    # Get chore name from entity ID mapping
+    if entity_id in ENTITY_ID_TO_CHORE_NAME:
+        name = ENTITY_ID_TO_CHORE_NAME[entity_id]
     else:
-        _LOGGER.warning("Invalid entity ID for chore completion: %s", entity_id)
+        _LOGGER.warning("Chore with entity ID '%s' not found", entity_id)
         return
 
     if name in CHORES:
