@@ -12,6 +12,9 @@ from .const import DOMAIN, STATE_COMPLETED, STATE_OVERDUE, STATE_PENDING
 
 _LOGGER = logging.getLogger(__name__)
 
+# Keep track of existing entities to prevent duplicates
+EXISTING_ENTITIES = set()
+
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -25,22 +28,29 @@ async def async_setup_platform(
     entities = []
     
     for chore_name in chores:
-        entities.append(ChoreSensor(hass, chore_name))
+        # Check if entity already exists
+        unique_id = f"chore_assistant_{chore_name}"
+        if unique_id not in EXISTING_ENTITIES:
+            entities.append(ChoreSensor(hass, chore_name))
+            EXISTING_ENTITIES.add(unique_id)
     
-    async_add_entities(entities)
+    if entities:
+        async_add_entities(entities)
     
     # Set up listener for chore updates
     @callback
     def async_chore_updated(event):
         """Handle chore updates."""
         # Create new sensors for any new chores
-        current_entities = {entity.chore_name: entity for entity in entities}
         chores = hass.data[DOMAIN]["chores"]
         
         new_entities = []
         for chore_name in chores:
-            if chore_name not in current_entities:
+            # Check if entity already exists
+            unique_id = f"chore_assistant_{chore_name}"
+            if unique_id not in EXISTING_ENTITIES:
                 new_entities.append(ChoreSensor(hass, chore_name))
+                EXISTING_ENTITIES.add(unique_id)
         
         if new_entities:
             async_add_entities(new_entities)
@@ -67,7 +77,7 @@ class ChoreSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the sensor."""
-        return f"Chore {self.chore_name}"
+        return self.chore_name
 
     @property
     def unique_id(self) -> str:

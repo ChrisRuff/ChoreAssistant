@@ -38,9 +38,17 @@ ADD_CHORE_SCHEMA = vol.Schema(
     }
 )
 
-REMOVE_CHORE_SCHEMA = vol.Schema({vol.Required("name"): cv.string})
+REMOVE_CHORE_SCHEMA = vol.Schema(
+    {
+        vol.Required("name"): cv.entity_domain("sensor"),
+    }
+)
 
-COMPLETE_CHORE_SCHEMA = vol.Schema({vol.Required("name"): cv.string})
+COMPLETE_CHORE_SCHEMA = vol.Schema(
+    {
+        vol.Required("name"): cv.entity_domain("sensor"),
+    }
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -123,7 +131,14 @@ async def async_add_chore(call: ServiceCall) -> None:
 async def async_remove_chore(call: ServiceCall) -> None:
     """Remove a chore."""
     global _HASS
-    name = call.data.get("name")
+    entity_id = call.data.get("name")
+    
+    # Extract chore name from entity ID
+    if entity_id.startswith("sensor.chore_assistant_"):
+        name = entity_id.replace("sensor.chore_assistant_", "")
+    else:
+        _LOGGER.warning("Invalid entity ID for chore removal: %s", entity_id)
+        return
 
     if name in CHORES:
         del CHORES[name]
@@ -131,7 +146,6 @@ async def async_remove_chore(call: ServiceCall) -> None:
         
         # Remove entity if it exists
         entity_registry = async_get_entity_registry(_HASS)
-        entity_id = f"sensor.chore_{name.lower().replace(' ', '_')}"
         if entity_registry.async_get(entity_id):
             entity_registry.async_remove(entity_id)
     else:
@@ -144,7 +158,14 @@ async def async_remove_chore(call: ServiceCall) -> None:
 async def async_complete_chore(call: ServiceCall) -> None:
     """Mark a chore as completed."""
     global _HASS
-    name = call.data.get("name")
+    entity_id = call.data.get("name")
+    
+    # Extract chore name from entity ID
+    if entity_id.startswith("sensor.chore_assistant_"):
+        name = entity_id.replace("sensor.chore_assistant_", "")
+    else:
+        _LOGGER.warning("Invalid entity ID for chore completion: %s", entity_id)
+        return
 
     if name in CHORES:
         CHORES[name]["state"] = STATE_COMPLETED

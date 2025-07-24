@@ -30,7 +30,9 @@ remove_chore:
       description: The name of the chore to remove
       required: true
       selector:
-        text:
+        entity:
+          domain: sensor
+          integration: chore_assistant
 
 complete_chore:
   name: Complete Chore
@@ -41,4 +43,6 @@ complete_chore:
       description: The name of the chore to complete
       required: true
       selector:
-        text:
+        entity:
+          domain: sensor
+          integration: chore_assistant
