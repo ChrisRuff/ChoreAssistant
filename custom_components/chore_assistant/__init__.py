@@ -19,6 +19,7 @@ from .const import (
     SERVICE_ADD_CHORE,
     SERVICE_REMOVE_CHORE,
     SERVICE_COMPLETE_CHORE,
+    SERVICE_RESET_CHORE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +53,12 @@ REMOVE_CHORE_SCHEMA = vol.Schema(
 )
 
 COMPLETE_CHORE_SCHEMA = vol.Schema(
+    {
+        vol.Required("name"): cv.entity_domain("sensor"),
+    }
+)
+
+RESET_CHORE_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.entity_domain("sensor"),
     }
@@ -116,6 +123,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_COMPLETE_CHORE, async_complete_chore, schema=COMPLETE_CHORE_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_RESET_CHORE, async_reset_chore, schema=RESET_CHORE_SCHEMA
     )
     hass.services.async_register(
         DOMAIN, "list_chores", async_list_chores, schema=LIST_CHORES_SCHEMA
@@ -231,6 +241,41 @@ async def async_complete_chore(call: ServiceCall) -> None:
         CHORES[name]["next_due_date"] = next_due_date
         
         _LOGGER.info("Completed chore: %s, next due: %s", name, next_due_date)
+    else:
+        _LOGGER.warning("Chore '%s' not found", name)
+
+    # Notify entities to update
+    _HASS.bus.async_fire(f"{DOMAIN}_updated")
+
+
+async def async_reset_chore(call: ServiceCall) -> None:
+    """Reset a chore to pending state."""
+    global _HASS
+    entity_id = call.data.get("name")
+    
+    # Get chore name from entity ID mapping
+    if entity_id in ENTITY_ID_TO_CHORE_NAME:
+        name = ENTITY_ID_TO_CHORE_NAME[entity_id]
+    else:
+        _LOGGER.warning("Chore with entity ID '%s' not found", entity_id)
+        return
+
+    if name in CHORES:
+        current_state = CHORES[name]["state"]
+        CHORES[name]["state"] = STATE_PENDING
+        
+        # Remove completed-related fields if they exist
+        if "completed_date" in CHORES[name]:
+            del CHORES[name]["completed_date"]
+        if "next_due_date" in CHORES[name]:
+            del CHORES[name]["next_due_date"]
+        
+        # Check if the chore should be overdue based on current due date
+        if "due_date" in CHORES[name] and CHORES[name]["due_date"] < datetime.now().date():
+            CHORES[name]["state"] = STATE_OVERDUE
+            _LOGGER.info("Reset chore '%s' to overdue (due date has passed)", name)
+        else:
+            _LOGGER.info("Reset chore '%s' from %s to pending", name, current_state)
     else:
         _LOGGER.warning("Chore '%s' not found", name)
 

@@ -56,6 +56,19 @@ complete_chore:
           domain: sensor
           integration: chore_assistant
 
+reset_chore:
+  name: Reset Chore
+  description: Reset a chore to pending state
+  fields:
+    name:
+      name: Name
+      description: The name of the chore to reset
+      required: true
+      selector:
+        entity:
+          domain: sensor
+          integration: chore_assistant
+
 list_chores:
   name: List Chores
   description: List all chores
