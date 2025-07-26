@@ -23,7 +23,7 @@ SERVICE_UPDATE_CHORE = "update_chore"
 
 # Service fields
 ATTR_CHORE_ID = "chore_id"
-ATTR_CHORE_NAME = "name"
+ATTR_CHORE_NAME = "chore_name"
 ATTR_INTERVAL_DAYS = "interval_days"
 ATTR_DUE_DATE = "due_date"
 ATTR_ASSIGNED_TO = "assigned_to"

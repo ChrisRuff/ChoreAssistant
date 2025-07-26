@@ -17,6 +17,7 @@ from .const import (
     SERVICE_REMOVE_CHORE,
     SERVICE_COMPLETE_CHORE,
     SERVICE_RESET_CHORE,
+    SERVICE_UPDATE_CHORE,
     EVENT_CHORE_ADDED,
     EVENT_CHORE_REMOVED,
     EVENT_CHORE_COMPLETED,
@@ -32,6 +33,7 @@ from .validation import (
     REMOVE_CHORE_SCHEMA,
     COMPLETE_CHORE_SCHEMA,
     RESET_CHORE_SCHEMA,
+    UPDATE_CHORE_SCHEMA,
     LIST_CHORES_SCHEMA,
 )
 
@@ -72,6 +74,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN, SERVICE_RESET_CHORE, async_reset_chore, schema=RESET_CHORE_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, SERVICE_UPDATE_CHORE, async_update_chore, schema=UPDATE_CHORE_SCHEMA
+    )
+    hass.services.async_register(
         DOMAIN, "list_chores", async_list_chores, schema=LIST_CHORES_SCHEMA
     )
     hass.services.async_register(
@@ -99,7 +104,7 @@ async def async_add_chore(call: ServiceCall) -> None:
     storage: ChoreStorage = hass.data[DOMAIN]["storage"]
     state_manager: ChoreStateManager = hass.data[DOMAIN]["state_manager"]
 
-    name = call.data.get("name")
+    name = call.data.get("chore_name")
     due_date = call.data.get("due_date")
     interval_days = call.data.get("interval_days", 7)
     assigned_to = call.data.get("assigned_to")
@@ -247,6 +252,61 @@ async def async_reset_chore(call: ServiceCall) -> None:
 
     except Exception as err:
         _LOGGER.error("Failed to reset chore '%s': %s", chore_id, err)
+        raise
+
+
+async def async_update_chore(call: ServiceCall) -> None:
+    """Update an existing chore's details."""
+    hass = call.hass
+    storage: ChoreStorage = hass.data[DOMAIN]["storage"]
+    state_manager: ChoreStateManager = hass.data[DOMAIN]["state_manager"]
+
+    chore_id = call.data.get("chore_id")
+    chore_name = call.data.get("chore_name")
+    interval_days = call.data.get("interval_days")
+    due_date = call.data.get("due_date")
+    assigned_to = call.data.get("assigned_to")
+    priority = call.data.get("priority")
+    category = call.data.get("category")
+    estimated_duration = call.data.get("estimated_duration")
+
+    try:
+        # Get chore
+        chore = await storage.async_get_chore(chore_id)
+        if not chore:
+            _LOGGER.warning("Chore with ID '%s' not found", chore_id)
+            return
+
+        # Update chore fields if provided
+        if chore_name is not None:
+            chore.name = chore_name
+        if interval_days is not None:
+            chore.interval_days = interval_days
+        if due_date is not None:
+            chore.due_date = due_date
+        if assigned_to is not None:
+            chore.assigned_to = assigned_to
+        if priority is not None:
+            chore.metadata.priority = priority
+        if category is not None:
+            chore.metadata.category = category
+        if estimated_duration is not None:
+            chore.metadata.estimated_duration = estimated_duration
+
+        # Update in storage
+        await storage.async_update_chore(chore)
+
+        # Fire event
+        hass.bus.async_fire(EVENT_CHORE_UPDATED, {
+            "chore_id": chore_id,
+            "name": chore.name,
+            "updated_fields": list(call.data.keys()),
+        })
+
+        _LOGGER.info("Updated chore: %s", chore.name)
+
+    except Exception as err:
+        _LOGGER.error("Failed to update chore '%s': %s", chore_id, err)
         raise
 
 
