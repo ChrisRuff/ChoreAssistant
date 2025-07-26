@@ -1,78 +1,195 @@
+# Service definitions for Chore Assistant integration
+
 add_chore:
   name: Add Chore
-  description: Add a new chore to track
+  description: Add a new chore to the system
   fields:
-    name:
-      name: Name
+    chore_name:
+      name: Chore Name
       description: The name of the chore
       required: true
+      example: "Clean the kitchen"
       selector:
         text:
-    due_date:
-      name: Due Date
-      description: The date when the chore is due
-      required: true
-      selector:
-        date:
-    interval:
-      name: Interval (Days)
-      description: How many days between recurring instances of this chore
-      required: true
+    interval_days:
+      name: Interval Days
+      description: How often the chore should be done (in days)
+      default: 7
+      example: 7
       selector:
         number:
           min: 1
           max: 365
-          step: 1
+          unit_of_measurement: days
+    due_date:
+      name: Due Date
+      description: When the chore is due (YYYY-MM-DD format)
+      example: "2024-12-25"
+      selector:
+        date:
     assigned_to:
       name: Assigned To
-      description: Person assigned to the chore (optional)
-      required: false
+      description: Person responsible for the chore
+      example: "John"
       selector:
         text:
+    priority:
+      name: Priority
+      description: Priority level of the chore
+      default: "medium"
+      selector:
+        select:
+          options:
+            - "low"
+            - "medium"
+            - "high"
+            - "urgent"
+    category:
+      name: Category
+      description: Category for organizing chores
+      default: "general"
+      example: "cleaning"
+      selector:
+        text:
+    estimated_duration:
+      name: Estimated Duration
+      description: Estimated time to complete in minutes
+      default: 30
+      example: 45
+      selector:
+        number:
+          min: 5
+          max: 480
+          unit_of_measurement: minutes
 
 remove_chore:
   name: Remove Chore
-  description: Remove a chore from tracking
+  description: Remove a chore from the system
   fields:
-    name:
-      name: Name
-      description: The name of the chore to remove
+    chore_id:
+      name: Chore ID
+      description: The unique identifier of the chore to remove
       required: true
+      example: "chore_123"
       selector:
-        entity:
-          domain: sensor
-          integration: chore_assistant
+        text:
 
 complete_chore:
   name: Complete Chore
   description: Mark a chore as completed
   fields:
-    name:
-      name: Name
-      description: The name of the chore to complete
+    chore_id:
+      name: Chore ID
+      description: The unique identifier of the chore to complete
       required: true
+      example: "chore_123"
       selector:
-        entity:
-          domain: sensor
-          integration: chore_assistant
+        text:
+    notes:
+      name: Notes
+      description: Optional notes about the completion
+      example: "Took longer than expected due to extra mess"
+      selector:
+        text:
 
 reset_chore:
   name: Reset Chore
   description: Reset a chore to pending state
   fields:
-    name:
-      name: Name
-      description: The name of the chore to reset
+    chore_id:
+      name: Chore ID
+      description: The unique identifier of the chore to reset
       required: true
+      example: "chore_123"
       selector:
-        entity:
-          domain: sensor
-          integration: chore_assistant
+        text:
+    notes:
+      name: Notes
+      description: Optional reason for resetting the chore
+      example: "Need to redo due to poor quality"
+      selector:
+        text:
+
+update_chore:
+  name: Update Chore
+  description: Update an existing chore's details
+  fields:
+    chore_id:
+      name: Chore ID
+      description: The unique identifier of the chore to update
+      required: true
+      example: "chore_123"
+      selector:
+        text:
+    chore_name:
+      name: Chore Name
+      description: The new name of the chore
+      example: "Deep clean the kitchen"
+      selector:
+        text:
+    interval_days:
+      name: Interval Days
+      description: How often the chore should be done (in days)
+      example: 14
+      selector:
+        number:
+          min: 1
+          max: 365
+          unit_of_measurement: days
+    due_date:
+      name: Due Date
+      description: When the chore is due (YYYY-MM-DD format)
+      example: "2024-12-30"
+      selector:
+        date:
+    assigned_to:
+      name: Assigned To
+      description: Person responsible for the chore
+      example: "Jane"
+      selector:
+        text:
+    priority:
+      name: Priority
+      description: Priority level of the chore
+      selector:
+        select:
+          options:
+            - "low"
+            - "medium"
+            - "high"
+            - "urgent"
+    category:
+      name: Category
+      description: Category for organizing chores
+      example: "deep-cleaning"
+      selector:
+        text:
+    estimated_duration:
+      name: Estimated Duration
+      description: Estimated time to complete in minutes
+      example: 60
+      selector:
+        number:
+          min: 5
+          max: 480
+          unit_of_measurement: minutes
+
+get_chore:
+  name: Get Chore
+  description: Get details about a specific chore
+  fields:
+    chore_id:
+      name: Chore ID
+      description: The unique identifier of the chore
+      required: true
+      example: "chore_123"
+      selector:
+        text:
 
 list_chores:
   name: List Chores
-  description: List all chores
+  description: Get a list of all chores
 
-check_recurring:
-  name: Check Recurring Chores
-  description: Manually check for recurring chores that need to be reset to pending
+check_overdue:
+  name: Check Overdue
+  description: Check for overdue chores and update their states

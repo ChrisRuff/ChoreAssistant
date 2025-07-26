@@ -9,9 +9,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import DOMAIN, STATE_COMPLETED, STATE_OVERDUE, STATE_PENDING
+from .storage import ChoreStorage
+from .models import Chore
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.info("Loading Chore Assistant sensor platform module")
 
 
 async def async_setup_platform(
@@ -23,18 +24,15 @@ async def async_setup_platform(
     """Set up the Chore Assistant sensor platform."""
     _LOGGER.info("Setting up Chore Assistant sensor platform")
     
-    # Store the add_entities callback for later use
-    hass.data[DOMAIN]["add_entities"] = async_add_entities
-    hass.data[DOMAIN]["existing_entities"] = set()
+    storage: ChoreStorage = hass.data[DOMAIN]["storage"]
     
     # Create sensor entities for each existing chore
-    chores = hass.data[DOMAIN]["chores"]
+    chores = await storage.async_get_all_chores()
     entities = []
     
-    for chore_name in chores:
-        _LOGGER.info("Creating sensor for chore: %s", chore_name)
-        entities.append(ChoreSensor(hass, chore_name))
-        hass.data[DOMAIN]["existing_entities"].add(chore_name)
+    for chore in chores:
+        _LOGGER.info("Creating sensor for chore: %s", chore.name)
+        entities.append(ChoreSensor(hass, chore))
     
     if entities:
         _LOGGER.info("Adding %d chore sensors", len(entities))
@@ -42,26 +40,26 @@ async def async_setup_platform(
     else:
         _LOGGER.info("No chores to create sensors for")
 
-    # Listen for updates to create new entities
+    # Set up listener for chore updates
     async def handle_chore_update(event):
-        """Handle chore update events to create new entities."""
+        """Handle chore update events to create/update entities."""
         _LOGGER.info("Handling chore update event")
-        current_chores = set(hass.data[DOMAIN]["chores"].keys())
-        existing_entities = hass.data[DOMAIN]["existing_entities"]
         
-        # Find new chores that don't have entities yet
-        new_chores = current_chores - existing_entities
+        # Get current chores
+        current_chores = await storage.async_get_all_chores()
+        current_chore_ids = {chore.id for chore in current_chores}
+        
+        # Get existing entity IDs
+        existing_entity_ids = {entity.unique_id for entity in hass.data[DOMAIN].get("entities", set())}
+        
+        # Find new chores
+        new_chores = [chore for chore in current_chores
+                     if f"chore_assistant_{chore.id}" not in existing_entity_ids]
         
         if new_chores:
-            new_entities = []
-            for chore_name in new_chores:
-                _LOGGER.info("Creating new sensor for chore: %s", chore_name)
-                new_entities.append(ChoreSensor(hass, chore_name))
-                existing_entities.add(chore_name)
-            
-            if new_entities:
-                _LOGGER.info("Adding %d new chore sensors", len(new_entities))
-                async_add_entities(new_entities)
+            new_entities = [ChoreSensor(hass, chore) for chore in new_chores]
+            _LOGGER.info("Adding %d new chore sensors", len(new_entities))
+            async_add_entities(new_entities)
     
     # Register event listener
     hass.bus.async_listen(f"{DOMAIN}_updated", handle_chore_update)
@@ -70,82 +68,90 @@ async def async_setup_platform(
 class ChoreSensor(SensorEntity):
     """Representation of a Chore sensor."""
 
-    def __init__(self, hass: HomeAssistant, chore_name: str) -> None:
+    def __init__(self, hass: HomeAssistant, chore: Chore) -> None:
         """Initialize the Chore sensor."""
         self.hass = hass
-        self.chore_name = chore_name
-        self._state = None
-        self._attrs = {}
+        self._chore = chore
+        self._storage: ChoreStorage = hass.data[DOMAIN]["storage"]
         
-        # Set the entity_id explicitly
-        self.entity_id = f"sensor.chore_assistant_{chore_name.lower().replace(' ', '_')}"
+        # Set entity properties
+        self._attr_unique_id = f"chore_assistant_{chore.id}"
+        self._attr_name = chore.name
+        self._attr_icon = self._get_icon()
         
-        # Initialize state from chore data
-        self._update_from_chore_data()
-        
-        # Set up automatic updates when chores change
-        self._setup_update_listener()
+        # Track entity in hass.data
+        if "entities" not in hass.data[DOMAIN]:
+            hass.data[DOMAIN]["entities"] = set()
+        hass.data[DOMAIN]["entities"].add(self)
 
-    def _update_from_chore_data(self) -> None:
-        """Update sensor state from chore data."""
-        chores = self.hass.data[DOMAIN]["chores"]
-        
-        if self.chore_name in chores:
-            chore_data = chores[self.chore_name]
-            self._state = chore_data["state"]
-            
-            # Set attributes
-            self._attrs = {}
-            for key, value in chore_data.items():
-                if key != "state":
-                    # Convert date objects to strings for JSON serialization
-                    if hasattr(value, 'isoformat'):
-                        self._attrs[key] = value.isoformat()
-                    else:
-                        self._attrs[key] = value
-        else:
-            # Chore was removed
-            self._state = "removed"
-
-    def _setup_update_listener(self) -> None:
-        """Set up listener for chore updates."""
-        async def handle_update(event):
-            """Handle chore update events."""
-            await self.async_update()
-            self.async_schedule_update_ha_state()
-        
-        self.hass.bus.async_listen(f"{DOMAIN}_updated", handle_update)
-
-    @property
-    def name(self) -> str:
-        """Return the display name of the sensor."""
-        return self.chore_name
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID."""
-        return f"chore_assistant_{self.chore_name.lower().replace(' ', '_')}"
-
-    @property
-    def state(self) -> str:
-        """Return the state of the sensor."""
-        return self._state
-
-    @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
-        """Return the state attributes."""
-        return self._attrs
-
-    @property
-    def icon(self) -> str:
-        """Return the icon to use in the frontend."""
-        if self._state == STATE_COMPLETED:
+    def _get_icon(self) -> str:
+        """Return the icon based on chore state."""
+        if self._chore.state == STATE_COMPLETED:
             return "mdi:check-circle"
-        elif self._state == STATE_OVERDUE:
+        elif self._chore.state == STATE_OVERDUE:
             return "mdi:alert-circle"
         else:
             return "mdi:checkbox-blank-circle-outline"
 
+    @property
+    def state(self) -> str:
+        """Return the state of the sensor."""
+        return self._chore.state
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return the state attributes."""
+        attrs = {
+            "id": self._chore.id,
+            "name": self._chore.name,
+            "state": self._chore.state,
+            "created_date": self._chore.created_date.isoformat() if self._chore.created_date else None,
+            "due_date": self._chore.due_date.isoformat() if self._chore.due_date else None,
+            "interval_days": self._chore.interval_days,
+            "assigned_to": self._chore.assigned_to,
+            "priority": self._chore.metadata.priority,
+            "category": self._chore.metadata.category,
+            "estimated_duration": self._chore.metadata.estimated_duration,
+            "history_count": len(self._chore.history),
+            "statistics": {
+                "total_completions": self._chore.statistics.total_completions,
+                "last_completed": self._chore.statistics.last_completed.isoformat() if self._chore.statistics.last_completed else None,
+                "average_completion_time": self._chore.statistics.average_completion_time,
+                "completion_streak": self._chore.statistics.completion_streak,
+            }
+        }
+        
+        # Add recent history
+        if self._chore.history:
+            recent_history = self._chore.history[-5:]  # Last 5 entries
+            attrs["recent_history"] = [
+                {
+                    "timestamp": entry.timestamp.isoformat(),
+                    "action": entry.action,
+                    "previous_state": entry.previous_state,
+                    "new_state": entry.new_state,
+                    "notes": entry.notes,
+                }
+                for entry in recent_history
+            ]
+        
+        return attrs
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return True
+
     async def async_update(self) -> None:
         """Fetch new state data for the sensor."""
-        self._update_from_chore_data()
+        try:
+            # Refresh chore data from storage
+            updated_chore = await self._storage.async_get_chore(self._chore.id)
+            if updated_chore:
+                self._chore = updated_chore
+                self._attr_icon = self._get_icon()
+            else:
+                # Chore was removed
+                self._attr_available = False
+        except Exception as err:
+            _LOGGER.error("Error updating chore sensor %s: %s", self._chore.id, err)
