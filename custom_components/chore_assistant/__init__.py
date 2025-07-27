@@ -135,7 +135,17 @@ async def async_add_chore(call: ServiceCall) -> None:
         # Add to storage
         await storage.async_add_chore(chore)
 
-        # Fire event
+        # Create sensor entity for the new chore
+        from .sensor import ChoreSensor
+        entity = ChoreSensor(hass, chore)
+        
+        # Add entity to Home Assistant
+        if hasattr(hass.data[DOMAIN], 'entities'):
+            hass.data[DOMAIN]['entities'][chore.id] = entity
+        else:
+            hass.data[DOMAIN]['entities'] = {chore.id: entity}
+            
+        # Fire event to notify sensor platform
         hass.bus.async_fire(EVENT_CHORE_ADDED, {
             "chore_id": chore.id,
             "name": name,
@@ -143,7 +153,7 @@ async def async_add_chore(call: ServiceCall) -> None:
             "interval_days": interval_days,
         })
 
-        _LOGGER.info("Added chore: %s", name)
+        _LOGGER.info("Added chore: %s with entity ID: sensor.chore_assistant_%s", name, chore.id)
 
     except Exception as err:
         _LOGGER.error("Failed to add chore '%s': %s", name, err)

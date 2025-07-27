@@ -19,9 +19,10 @@ _LOGGER = logging.getLogger(__name__)
 class ChoreStateManager:
     """Manages chore state transitions and validation."""
     
-    def __init__(self, storage: ChoreStorage):
+    def __init__(self, storage: ChoreStorage, hass=None):
         """Initialize the state manager."""
         self._storage = storage
+        self._hass = hass
         self._state_transitions = {
             STATE_PENDING: [STATE_COMPLETED, STATE_OVERDUE],
             STATE_COMPLETED: [STATE_PENDING],
@@ -38,7 +39,7 @@ class ChoreStateManager:
     ) -> bool:
         """Transition a chore to a new state."""
         try:
-            chore = await self._storage.get_chore(chore_id)
+            chore = await self._storage.async_get_chore(chore_id)
             if not chore:
                 _LOGGER.error("Chore %s not found", chore_id)
                 return False
@@ -140,6 +141,10 @@ class ChoreStateManager:
     ) -> None:
         """Fire Home Assistant event for state change."""
         try:
+            if not self._hass:
+                _LOGGER.debug("No Home Assistant instance available for event firing")
+                return
+                
             event_data = {
                 "chore_id": chore.id,
                 "name": chore.name,
@@ -152,17 +157,21 @@ class ChoreStateManager:
                 event_data["reason"] = reason
             
             # Fire generic state change event
-            # Note: This will need to be called from the integration level with hass reference
-            # The actual event firing will be handled by the integration
+            self._hass.bus.async_fire("chore_assistant_updated", event_data)
+            
+            # Fire specific state change event
+            self._hass.bus.async_fire(EVENT_CHORE_COMPLETED if new_state == STATE_COMPLETED else "chore_assistant_state_changed", event_data)
+            
+            _LOGGER.debug("Fired events for chore %s state change: %s -> %s", chore.id, old_state, new_state)
             
         except Exception as err:
-            _LOGGER.error("Error preparing state change event: %s", err)
+            _LOGGER.error("Error firing state change event: %s", err)
     
     async def check_overdue_chores(self) -> List[str]:
         """Check for overdue chores and update their state."""
         overdue_chores = []
         try:
-            all_chores = await self._storage.get_all_chores()
+            all_chores = await self._storage.async_get_all_chores()
             
             for chore in all_chores:
                 if chore.state == STATE_PENDING and chore.due_date:
