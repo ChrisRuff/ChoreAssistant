@@ -108,17 +108,21 @@ async def async_add_chore(call: ServiceCall) -> None:
     due_date = call.data.get("due_date")
     interval_days = call.data.get("interval_days", 7)
     assigned_to = call.data.get("assigned_to")
-    description = call.data.get("description")
     priority = call.data.get("priority", "medium")
-    tags = call.data.get("tags", [])
+    category = call.data.get("category", "general")
+    estimated_duration = call.data.get("estimated_duration", 30)
 
     try:
+        # Generate unique chore ID
+        import uuid
+        chore_id = str(uuid.uuid4())[:8]  # Short unique ID
+        
         # Create new chore
         from datetime import datetime
         from .models import ChoreMetadata
         
         chore = Chore(
-            id=name.lower().replace(" ", "_"),
+            id=chore_id,
             name=name,
             state="pending",
             created_date=datetime.now(),
@@ -127,33 +131,49 @@ async def async_add_chore(call: ServiceCall) -> None:
             assigned_to=assigned_to,
             metadata=ChoreMetadata(
                 priority=priority,
-                category="general",
-                estimated_duration=30
+                category=category,
+                estimated_duration=estimated_duration
             )
         )
 
         # Add to storage
         await storage.async_add_chore(chore)
+        _LOGGER.debug("Chore stored successfully: %s", chore_id)
 
-        # Create sensor entity for the new chore
+        # Get the sensor platform's async_add_entities callback
+        if "sensor_platform" not in hass.data[DOMAIN]:
+            _LOGGER.warning("Sensor platform not yet loaded, chore will be loaded on next restart")
+            # Fire event anyway so platform can pick it up when loaded
+            hass.bus.async_fire(EVENT_CHORE_ADDED, {
+                "chore_id": chore_id,
+                "name": name,
+                "due_date": due_date.isoformat() if due_date else None,
+                "interval_days": interval_days,
+            })
+            return
+
+        # Create and register sensor entity
         from .sensor import ChoreSensor
         entity = ChoreSensor(hass, chore)
         
-        # Add entity to Home Assistant
-        if hasattr(hass.data[DOMAIN], 'entities'):
-            hass.data[DOMAIN]['entities'][chore.id] = entity
-        else:
-            hass.data[DOMAIN]['entities'] = {chore.id: entity}
+        # Add entity through the platform's async_add_entities
+        async_add_entities = hass.data[DOMAIN]["sensor_platform"]["async_add_entities"]
+        async_add_entities([entity])
+        
+        # Store entity reference
+        if "entities" not in hass.data[DOMAIN]:
+            hass.data[DOMAIN]["entities"] = {}
+        hass.data[DOMAIN]["entities"][chore_id] = entity
             
-        # Fire event to notify sensor platform
+        # Fire event to notify other components
         hass.bus.async_fire(EVENT_CHORE_ADDED, {
-            "chore_id": chore.id,
+            "chore_id": chore_id,
             "name": name,
             "due_date": due_date.isoformat() if due_date else None,
             "interval_days": interval_days,
         })
 
-        _LOGGER.info("Added chore: %s with entity ID: sensor.chore_assistant_%s", name, chore.id)
+        _LOGGER.info("Successfully added chore '%s' with ID: %s", name, chore_id)
 
     except Exception as err:
         _LOGGER.error("Failed to add chore '%s': %s", name, err)
